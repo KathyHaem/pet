@@ -53,13 +53,13 @@ class MorphoBinaryClassPVP(PVP):
         # For each pattern_id, we define the corresponding pattern and return a pair of text a and text b (where text b
         # can also be empty).
         if self.pattern_id <= len(questions):
-            text_a = questions[self.pattern_id].split()
+            text_a = questions[self.pattern_id]
             # We tell the tokenizer that text_a can be truncated if the resulting sequence is longer than
             # our language model's max sequence length
             text_a = self.shortenable(text_a)
 
             # this corresponds to the pattern text_a [MASK]
-            return text_a + [self.mask], []
+            return [text_a, self.mask], []
         else:
             raise ValueError("No pattern implemented for id {}".format(self.pattern_id))
 
@@ -86,8 +86,9 @@ class MorphoBinaryClassPVP(PVP):
         kwargs = {'add_prefix_space': True} if isinstance(tokenizer, GPT2Tokenizer) else {}
 
         parts_a = [x if isinstance(x, tuple) else (x, False) for x in parts_a]
-        # here is the main difference to the overridden method (is_split_into_words)
-        parts_a = [(tokenizer.encode(x, add_special_tokens=False, is_split_into_words=True, **kwargs), s) for x, s in
+        # here is the main difference to the overridden method (is_pretokenized).
+        # though tbh during debugging i'm not even sure if that makes a difference??
+        parts_a = [(tokenizer.encode(x, add_special_tokens=False, is_pretokenized=True, **kwargs), s) for x, s in
                    parts_a if x]
         # i'm also not even bothering to process parts_b because so far i'm quite confident we won't have any (!)
         self.truncate(parts_a, parts_b, max_length=self.wrapper.config.max_seq_length)
