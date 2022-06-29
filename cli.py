@@ -27,6 +27,9 @@ from pet.wrapper import WRAPPER_TYPES, MODEL_CLASSES, SEQUENCE_CLASSIFIER_WRAPPE
 import pet
 import log
 
+import pet.morpho_task_processor
+import pet.morpho_task_pvp
+
 logger = log.get_logger('root')
 
 
