@@ -333,6 +333,10 @@ def train_pet_ensemble(model_config: WrapperConfig, train_config: TrainConfig, e
 
             if os.path.exists(pattern_iter_output_dir):
                 logger.warning(f"Path {pattern_iter_output_dir} already exists, skipping it...")
+                with open(os.path.join(pattern_iter_output_dir, "results.json"), "r") as fh:
+                    results_dict = json.load(fh)
+                    for metric, value in results_dict["test_set_after_training"].items():
+                        results[metric][pattern_id].append(value)
                 continue
 
             if not os.path.exists(pattern_iter_output_dir):
