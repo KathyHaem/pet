@@ -29,6 +29,9 @@ from pet.config import WrapperConfig
 import pet
 import log
 
+import pet.morpho_task_processor
+import pet.morpho_task_pvp
+
 logger = log.get_logger('root')
 
 

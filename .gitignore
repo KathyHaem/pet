@@ -6,5 +6,8 @@
 .ipynb_checkpoints
 .pytest_cache
 glue_data/*
+data/
 out/*
 venv/*
+venv38/*
+

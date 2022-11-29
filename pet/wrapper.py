@@ -147,7 +147,12 @@ class TransformerModelWrapper:
         self.model = model_class.from_pretrained(config.model_name_or_path, config=model_config,
                                                  cache_dir=config.cache_dir if config.cache_dir else None)
 
-        self.preprocessor = PREPROCESSORS[self.config.wrapper_type](self, self.config.task_name, self.config.pattern_ids,
+        #Multi GPU Training
+        n_gpus = torch.cuda.device_count()
+        if n_gpus >1:
+            self.model = torch.nn.DataParallel(self.model)
+
+        self.preprocessor = PREPROCESSORS[self.config.wrapper_type](self, self.config.task_name, self.config.pattern_id,
                                                                     self.config.verbalizer_file)
         self.task_helper = TASK_HELPERS[self.config.task_name](self) if self.config.task_name in TASK_HELPERS else None
 
@@ -263,9 +268,6 @@ class TransformerModelWrapper:
         else:
             raise ValueError(f"Unknown optimizer choice: '{optimizer}'")
 
-        # multi-gpu training
-        if n_gpu > 1:
-            self.model = torch.nn.DataParallel(self.model)
 
         self.model.to(device)
 
@@ -364,10 +366,10 @@ class TransformerModelWrapper:
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=eval_batch_size)
 
-        if n_gpu > 1:
-            self.model = torch.nn.DataParallel(self.model)
-
-        self.model.to(device)
+        # tbd if needed, not present on master
+        #if n_gpu > 1:
+        #    self.model = torch.nn.DataParallel(self.model)
+        #self.model.to(device)
 
         preds = None
         all_indices, out_label_ids, question_ids = None, None, None
