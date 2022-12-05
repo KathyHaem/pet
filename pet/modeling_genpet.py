@@ -1,10 +1,10 @@
 import torch
-from transformers import PegasusForConditionalGeneration
+from transformers import PegasusForConditionalGeneration, MBartForConditionalGeneration
+from transformers.generation_utils import GenerationMixin
 from transformers.modeling_outputs import BaseModelOutput
 
 
-class PetPegasusForConditionalGeneration(PegasusForConditionalGeneration):
-
+class PetConditionalGenerationMixin(GenerationMixin):
     @staticmethod
     def _get_len_to_output_map(all_model_kwargs):
         all_len_to_output_map = []
@@ -45,7 +45,8 @@ class PetPegasusForConditionalGeneration(PegasusForConditionalGeneration):
         joint_decoding = model_kwargs.get('joint_decoding', False)
 
         kwargs_keys = {'encoder_outputs', 'output_prefix_ids'}
-        assert kwargs_keys.issubset(set(model_kwargs.keys())), f"Got kwargs {set(model_kwargs.keys())} but expected {kwargs_keys}"
+        assert kwargs_keys.issubset(
+            set(model_kwargs.keys())), f"Got kwargs {set(model_kwargs.keys())} but expected {kwargs_keys}"
 
         assert input_ids.shape[0] % num_patterns == attention_mask.shape[0] % num_patterns == \
                model_kwargs['encoder_outputs'].last_hidden_state.shape[0] % num_patterns == 0
@@ -54,14 +55,16 @@ class PetPegasusForConditionalGeneration(PegasusForConditionalGeneration):
         grouped_input_ids = [input_ids[start::num_patterns] for start in range(num_patterns)]
 
         grouped_model_kwargs = [{
-            'encoder_outputs': BaseModelOutput(last_hidden_state=model_kwargs['encoder_outputs'].last_hidden_state[start::num_patterns]),
+            'encoder_outputs': BaseModelOutput(
+                last_hidden_state=model_kwargs['encoder_outputs'].last_hidden_state[start::num_patterns]),
             'output_prefix_ids': model_kwargs['output_prefix_ids'][start]
         } for start in range(num_patterns)]
 
-        grouped_len_to_output = PetPegasusForConditionalGeneration._get_len_to_output_map(grouped_model_kwargs)
+        grouped_len_to_output = PetConditionalGenerationMixin._get_len_to_output_map(grouped_model_kwargs)
         prefix_lengths = [len(len_to_output) for len_to_output in grouped_len_to_output]
 
-        assert len(grouped_input_ids) == len(grouped_attention_masks) == len(grouped_model_kwargs) == len(prefix_lengths)
+        assert len(grouped_input_ids) == len(grouped_attention_masks) == len(grouped_model_kwargs) == len(
+            prefix_lengths)
 
         # length of generated sentences / unfinished sentences
         grouped_unfinished_sents = [input_ids.new(input_ids.shape[0]).fill_(1) for input_ids in grouped_input_ids]
@@ -87,7 +90,8 @@ class PetPegasusForConditionalGeneration(PegasusForConditionalGeneration):
             for idx in indices_to_process:
 
                 model_inputs = self.prepare_inputs_for_generation(
-                    grouped_input_ids[idx], past=grouped_past[idx], attention_mask=grouped_attention_masks[idx], use_cache=use_cache,
+                    grouped_input_ids[idx], past=grouped_past[idx], attention_mask=grouped_attention_masks[idx],
+                    use_cache=use_cache,
                     **grouped_model_kwargs[idx]
                 )
 
@@ -110,15 +114,17 @@ class PetPegasusForConditionalGeneration(PegasusForConditionalGeneration):
             for idx in indices_to_process:
                 if not decoding_started:
                     assert cur_prefix_len in grouped_len_to_output[idx].keys()
-                    next_token = torch.tensor([grouped_len_to_output[idx][cur_prefix_len]] * grouped_input_ids[idx].shape[0],
-                                              device=grouped_input_ids[idx].device)
+                    next_token = torch.tensor(
+                        [grouped_len_to_output[idx][cur_prefix_len]] * grouped_input_ids[idx].shape[0],
+                        device=grouped_input_ids[idx].device)
                 elif not joint_decoding:
                     next_token = torch.argmax(grouped_next_token_logits[idx], dim=-1)
 
                 # update generations and finished sentences
                 if eos_token_id is not None:
                     # pad finished sentences if eos_token_id exists
-                    tokens_to_add = next_token * grouped_unfinished_sents[idx] + (pad_token_id) * (1 - grouped_unfinished_sents[idx])
+                    tokens_to_add = next_token * grouped_unfinished_sents[idx] + (pad_token_id) * (
+                                1 - grouped_unfinished_sents[idx])
                 else:
                     tokens_to_add = next_token
 
@@ -155,5 +161,17 @@ class PetPegasusForConditionalGeneration(PegasusForConditionalGeneration):
 
         return results
 
-    def _generate_beam_search(**kwargs):
+
+class PetPegasusForConditionalGeneration(PetConditionalGenerationMixin, PegasusForConditionalGeneration):
+
+    def _generate_beam_search(self, **kwargs):
         raise NotImplementedError("Beam search is not implemented for joint decoding")
+
+
+class PetMBartForConditionalGeneration(PetConditionalGenerationMixin, MBartForConditionalGeneration):
+
+    def _generate_beam_search(self, **kwargs):
+        raise NotImplementedError("Beam search is not implemented for joint decoding")
+
+
+# class PetMT5ForConditionalGeneration(PetConditionalGenerationMixin, MT5ForConditionalGeneration)

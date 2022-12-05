@@ -30,13 +30,13 @@ from transformers import AdamW, get_linear_schedule_with_warmup, PreTrainedToken
     XLNetLMHeadModel, BertConfig, BertForSequenceClassification, BertTokenizer, RobertaConfig, \
     RobertaForSequenceClassification, RobertaTokenizer, XLMRobertaConfig, XLMRobertaForSequenceClassification, \
     XLMRobertaTokenizer, AlbertForSequenceClassification, AlbertForMaskedLM, AlbertTokenizer, AlbertConfig, \
-    GPT2Config, GPT2LMHeadModel, GPT2Tokenizer, PegasusConfig, PegasusTokenizer, Adafactor
+    GPT2Config, GPT2LMHeadModel, GPT2Tokenizer, PegasusConfig, PegasusTokenizer, Adafactor, MBartConfig, MBartTokenizer
 from transformers import __version__ as transformers_version
 
 import log
 from pet import preprocessor
 from pet.config import WrapperConfig
-from pet.modeling_pegasus import PetPegasusForConditionalGeneration
+from pet.modeling_genpet import PetPegasusForConditionalGeneration, PetMBartForConditionalGeneration
 from pet.pvp import GenerativePVP
 from pet.tasks import TASK_HELPERS
 from pet.utils import InputExample, InputFeatures, DictDataset, distillation_loss, \
@@ -99,7 +99,18 @@ MODEL_CLASSES = {
         'config': PegasusConfig,
         'tokenizer': PegasusTokenizer,
         GENERATIVE_WRAPPER: PetPegasusForConditionalGeneration
-    }
+    },
+    'mbart': {
+        'config': MBartConfig,
+        'tokenizer': MBartTokenizer,
+        GENERATIVE_WRAPPER: PetMBartForConditionalGeneration
+    },
+    # todo mT5 would require at least transformers 4.7, so decide if we want to upgrade the dependency
+    #'mt5': {
+    #    'config': MT5Config,
+    #    'tokenizer':  MT5Tokenizer,
+    #    GENERATIVE_WRAPPER: MT5
+    #}
 }
 
 EVALUATION_STEP_FUNCTIONS = {
