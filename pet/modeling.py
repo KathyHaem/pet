@@ -472,6 +472,7 @@ def evaluate(model: TransformerModelWrapper, eval_data: List[InputExample], conf
     scores = {}
     rouge_output = None
 
+    print(metrics)
     if any(metric.startswith('rouge') for metric in metrics) and references is not None:
         rouge_metric = load_metric('rouge')
         rouge_metric.add_batch(predictions=predictions, references=references)

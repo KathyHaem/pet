@@ -17,11 +17,50 @@ labels to their verbalizations (see the paper for more details on PVPs).
 This file shows an example of a PVP for a new task.
 """
 
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
-from pet.pvp import PVP, PVPS
+from pet.pvp import PVP, PVPS, GenerativePVP, FilledPattern
+from pet.tasks import METRICS
 from pet.utils import InputExample, get_verbalization_ids
 from transformers import PreTrainedTokenizer, GPT2Tokenizer
+
+
+class MorphoSubjectObjectPVP(GenerativePVP):
+    METRICS = ["rouge1", "rouge2", "rougeL"]
+    TASK_NAME = "morpho-subj-obj"
+
+    def generative_prefix(self) -> Optional[str]:
+        # todo we may want one?? but idk what it would be so far
+        return None
+
+    def get_parts(self, example: InputExample) -> FilledPattern:
+        """
+        This function defines the actual patterns: It takes as input an example and outputs the result of applying a
+        pattern to it. To allow for multiple patterns, a pattern_id can be passed to the PVP's constructor. This
+        method must implement the application of all patterns.
+
+        For now we just have one kind of pattern: Using the already-generated question that Marion gave me.
+        However, these do correspond to several variants.
+        """
+        questions = example.text_a.split(" ||| ")
+
+        # For each pattern_id, we define the corresponding pattern and return a pair of text a and text b (where text b
+        # can also be empty).
+        if self.pattern_id <= len(questions):
+            text_a = questions[self.pattern_id]
+            prefix = [self.generative_prefix()] if self.no_decoder_prefix and self.generative_prefix() else []
+            # We tell the tokenizer that text_a can be truncated if the resulting sequence is longer than
+            # our language model's max sequence length
+            text_a = self.shortenable(text_a)
+
+            # this corresponds to the pattern text_a [MASK]
+            return prefix + [text_a, self.mask], []
+        else:
+            raise ValueError("No pattern implemented for id {}".format(self.pattern_id))
+
+
+PVPS[MorphoSubjectObjectPVP.TASK_NAME] = MorphoSubjectObjectPVP
+METRICS[MorphoSubjectObjectPVP.TASK_NAME] = MorphoSubjectObjectPVP.METRICS
 
 
 class MorphoBinaryClassPVP(PVP):

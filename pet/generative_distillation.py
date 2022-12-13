@@ -76,8 +76,9 @@ def _build_distillation_examples(raw_data: List[GenerativeInputExample], origina
     return dist_examples
 
 
-def compute_output_probabilities(examples: List[GenerativeInputExample], output_dir: str, eval_config: pet.config.EvalConfig,
-                                 model_config: pet.config.WrapperConfig, use_untrained_model: bool = False, uniform_sampling: bool = False) -> None:
+def compute_output_probabilities(examples: List[GenerativeInputExample], output_dir: str,
+                                 eval_config: pet.config.EvalConfig, model_config: pet.config.WrapperConfig,
+                                 use_untrained_model: bool = False, uniform_sampling: bool = False) -> None:
     subdirs = next(os.walk(output_dir))[1]
     logger.info("Found the following {} subdirectories: {}".format(len(subdirs), subdirs))
 
@@ -121,6 +122,7 @@ def compute_output_probabilities(examples: List[GenerativeInputExample], output_
         wrapper = pet.init_model(model_config)
 
     for subdir in valid_subdirs:
+        logger.info(f"subdir {subdir}")
         if uniform_sampling:
             for example in eval_examples:
                 example.meta['output_log_probabilities'].append(0)
@@ -143,15 +145,17 @@ def compute_output_probabilities(examples: List[GenerativeInputExample], output_
 
         for pattern_id in wrapper.config.pattern_ids:
             output_log_probabilities = wrapper.get_sequence_log_probabilities(
-                eval_examples, device=device, pattern_id=pattern_id, per_gpu_eval_batch_size=eval_config.per_gpu_eval_batch_size,
-                n_gpu=eval_config.n_gpu)
+                eval_examples, device=device, pattern_id=pattern_id,
+                per_gpu_eval_batch_size=eval_config.per_gpu_eval_batch_size, n_gpu=eval_config.n_gpu)
 
             assert len(eval_examples) == len(output_log_probabilities)
             for example, log_probability in zip(eval_examples, output_log_probabilities):
                 example.meta['output_log_probabilities'].append(log_probability)
 
-        wrapper.model = None
-        torch.cuda.empty_cache()
+        if not use_untrained_model:
+            wrapper.model = None
+            torch.cuda.empty_cache()
+            logger.info("cleared cuda cache and set wrapper.model = None")
 
     idx_to_examples = defaultdict(list)
     for example in eval_examples:

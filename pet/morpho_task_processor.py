@@ -21,8 +21,70 @@ import os
 from typing import List
 
 from pet.task_helpers import MultiMaskTaskHelper
-from pet.tasks import DataProcessor, PROCESSORS, TASK_HELPERS
-from pet.utils import InputExample
+from pet.tasks import DataProcessor, PROCESSORS, TASK_HELPERS, GenerativeDataProcessor, UNLABELED_SET, DEV_SET, \
+    TEST_SET, TRAIN_SET
+from pet.utils import InputExample, GenerativeInputExample
+
+
+class MorphoSubjectObjectDataProcessor(GenerativeDataProcessor):
+    # Set this to the name of the task
+    TASK_NAME = "morpho-subj-obj"
+
+    # Set this to the name of the file containing the train examples
+    TRAIN_FILE_NAME = "train.tsv"
+
+    # Set this to the name of the file containing the dev examples
+    DEV_FILE_NAME = "dev.tsv"
+
+    # Set this to the name of the file containing the test examples
+    TEST_FILE_NAME = "eval.tsv"
+
+    # Set this to the name of the file containing the unlabeled examples
+    UNLABELED_FILE_NAME = "unlabeled.tsv"
+
+    # Set this to the column of the train/test csv files containing the input's text a
+    TEXT_A_COLUMN = 0
+
+    # Set this to the column of the train/test csv files containing the input's text b or to -1 if there is no text b
+    TEXT_B_COLUMN = -1
+
+    # Set this to the column of the train/test csv files containing the input's gold label
+    LABEL_COLUMN = 2
+
+    def get_dev_examples(self, data_dir) -> List[GenerativeInputExample]:
+        return self._create_examples(os.path.join(data_dir, MorphoSubjectObjectDataProcessor.DEV_FILE_NAME), DEV_SET)
+
+    def get_test_examples(self, data_dir) -> List[GenerativeInputExample]:
+        return self._create_examples(os.path.join(data_dir, MorphoSubjectObjectDataProcessor.TEST_FILE_NAME), TEST_SET)
+
+    def get_unlabeled_examples(self, data_dir) -> List[GenerativeInputExample]:
+        return self._create_examples(
+            os.path.join(data_dir, MorphoSubjectObjectDataProcessor.UNLABELED_FILE_NAME), UNLABELED_SET)
+
+    def get_train_examples(self, data_dir) -> List[GenerativeInputExample]:
+        return self._create_examples(
+            os.path.join(data_dir, MorphoSubjectObjectDataProcessor.TRAIN_FILE_NAME), TRAIN_SET)
+
+    @staticmethod
+    def _create_examples(path, set_type) -> List[GenerativeInputExample]:
+        """Creates examples for the training and dev sets."""
+        examples = []
+
+        with open(path, "r", encoding="utf-8") as infile:
+            reader = csv.reader(infile, delimiter='\t')
+            for idx, row in enumerate(reader):
+                guid = "%s-%s" % (set_type, idx)
+                output_text = None if set_type == UNLABELED_SET else row[MorphoSubjectObjectDataProcessor.LABEL_COLUMN]
+                text_a = row[MorphoSubjectObjectDataProcessor.TEXT_A_COLUMN]
+                text_b = None
+                example = GenerativeInputExample(guid=guid, text_a=text_a, text_b=text_b, output_text=output_text)
+                examples.append(example)
+
+        return examples
+
+
+# register the processor for this task with its name
+PROCESSORS[MorphoSubjectObjectDataProcessor.TASK_NAME] = MorphoSubjectObjectDataProcessor
 
 
 class MorphoBinaryClassDataProcessor(DataProcessor):
@@ -63,7 +125,7 @@ class MorphoBinaryClassDataProcessor(DataProcessor):
         :param data_dir: the directory in which the training data can be found
         :return: a list of train examples
         """
-        return self._create_examples(os.path.join(data_dir, MorphoBinaryClassDataProcessor.TRAIN_FILE_NAME), "train")
+        return self._create_examples(os.path.join(data_dir, MorphoBinaryClassDataProcessor.TRAIN_FILE_NAME), TRAIN_SET)
 
     def get_dev_examples(self, data_dir: str) -> List[InputExample]:
         """
@@ -71,7 +133,7 @@ class MorphoBinaryClassDataProcessor(DataProcessor):
         :param data_dir: the directory in which the dev data can be found
         :return: a list of dev examples
         """
-        return self._create_examples(os.path.join(data_dir, MorphoBinaryClassDataProcessor.DEV_FILE_NAME), "dev")
+        return self._create_examples(os.path.join(data_dir, MorphoBinaryClassDataProcessor.DEV_FILE_NAME), DEV_SET)
 
     def get_test_examples(self, data_dir) -> List[InputExample]:
         """
@@ -79,7 +141,7 @@ class MorphoBinaryClassDataProcessor(DataProcessor):
         :param data_dir: the directory in which the test data can be found
         :return: a list of test examples
         """
-        return self._create_examples(os.path.join(data_dir, MorphoBinaryClassDataProcessor.TEST_FILE_NAME), "test")
+        return self._create_examples(os.path.join(data_dir, MorphoBinaryClassDataProcessor.TEST_FILE_NAME), TEST_SET)
 
     def get_unlabeled_examples(self, data_dir) -> List[InputExample]:
         """
@@ -94,7 +156,8 @@ class MorphoBinaryClassDataProcessor(DataProcessor):
         """This method returns all possible labels for the task."""
         return MorphoBinaryClassDataProcessor.LABELS
 
-    def _create_examples(self, path, set_type, max_examples=-1, skip_first=0):
+    @staticmethod
+    def _create_examples(path, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
 

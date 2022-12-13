@@ -158,14 +158,16 @@ class TransformerModelWrapper:
         self.model = model_class.from_pretrained(config.model_name_or_path, config=model_config,
                                                  cache_dir=config.cache_dir if config.cache_dir else None)
 
-        #Multi GPU Training
+        # Multi GPU Training
         n_gpus = torch.cuda.device_count()
-        if n_gpus >1:
+        if n_gpus > 1:
             self.model = torch.nn.DataParallel(self.model)
 
-        self.preprocessor = PREPROCESSORS[self.config.wrapper_type](self, self.config.task_name, self.config.pattern_id,
+        self.preprocessor = PREPROCESSORS[self.config.wrapper_type](self, self.config.task_name,
+                                                                    self.config.pattern_ids,
                                                                     self.config.verbalizer_file)
         self.task_helper = TASK_HELPERS[self.config.task_name](self) if self.config.task_name in TASK_HELPERS else None
+        logger.info(f"created new wrapper with model {type(self.model)}")
 
     @classmethod
     def from_pretrained(cls, path: str) -> 'TransformerModelWrapper':
@@ -180,6 +182,7 @@ class TransformerModelWrapper:
             wrapper, wrapper.config.task_name, wrapper.config.pattern_ids, wrapper.config.verbalizer_file)
         wrapper.task_helper = TASK_HELPERS[wrapper.config.task_name](wrapper) \
             if wrapper.config.task_name in TASK_HELPERS else None
+        logger.info(f"loaded wrapper from pretrained with model {type(wrapper.model)}")
         return wrapper
 
     def save(self, path: str) -> None:
@@ -279,7 +282,6 @@ class TransformerModelWrapper:
         else:
             raise ValueError(f"Unknown optimizer choice: '{optimizer}'")
 
-
         self.model.to(device)
 
         global_step = 0
@@ -378,9 +380,9 @@ class TransformerModelWrapper:
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=eval_batch_size)
 
         # tbd if needed, not present on master
-        #if n_gpu > 1:
-        #    self.model = torch.nn.DataParallel(self.model)
-        #self.model.to(device)
+        if n_gpu > 1:
+            self.model = torch.nn.DataParallel(self.model)
+        self.model.to(device)
 
         preds = None
         all_indices, out_label_ids, question_ids = None, None, None
@@ -609,6 +611,8 @@ class TransformerModelWrapper:
         for (ex_index, example) in enumerate(examples):
             if ex_index % 10000 == 0:
                 logger.info("Writing example {}".format(ex_index))
+                logger.info(f"text_a: {example.text_a}, text_b: {example.text_b}, target output: "
+                            f"{example.output_text if type(example) == GenerativeInputExample else example.label}")
             for pattern_id in pattern_ids:
                 input_features = self.preprocessor.get_input_features(
                     example, pattern_id=pattern_id, labelled=labelled, priming=priming)
