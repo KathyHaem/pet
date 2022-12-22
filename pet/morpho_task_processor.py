@@ -105,7 +105,7 @@ class MorphoBinaryClassDataProcessor(DataProcessor):
     TEST_FILE_NAME = "eval.tsv"
 
     # Set this to the name of the file containing the unlabeled examples
-    UNLABELED_FILE_NAME = None
+    UNLABELED_FILE_NAME = "unlabeled.tsv"
 
     # Set this to a list of all labels in the train + test data
     LABELS = ["YES", "NO"]
@@ -149,8 +149,10 @@ class MorphoBinaryClassDataProcessor(DataProcessor):
         :param data_dir: the directory in which the unlabeled data can be found
         :return: a list of unlabeled examples
         """
+        filename = os.path.join(data_dir, MorphoBinaryClassDataProcessor.UNLABELED_FILE_NAME)
+        if os.path.isfile(filename):
+            return self._create_examples(filename, UNLABELED_SET)
         return []
-        # return self._create_examples(os.path.join(data_dir, MorphoBinaryClassDataProcessor.UNLABELED_FILE_NAME), "unlabeled")
 
     def get_labels(self) -> List[str]:
         """This method returns all possible labels for the task."""
